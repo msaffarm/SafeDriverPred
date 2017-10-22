@@ -30,9 +30,6 @@ def save_model(model,save_path,model_name=None,prefix=None):
 	print("Model saved successfully in " + str(save_path)+str(model_name))
 
 
-def xgb_cv(model):
-	pass
-
 
 def tune_hyperparams_scikit(model,X_train,y_train):
 	"""
@@ -40,23 +37,27 @@ def tune_hyperparams_scikit(model,X_train,y_train):
 	"""
 	print("Started CV task at "+datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
 	
-	params = [{"learning_rate":[0.1],
-	"n_estimators":[10,100,200,500,1000],
+	# create gini scorer
+	measurer = Measurement()
+	gini_score = measurer.get_gini_scorer()
+
+	params = [{"learning_rate":[0.05,0.1],
+	"n_estimators":[10,100,200,400,800],
 	"seed":[100],
-	"max_depth":[3,4,5],
-	"min_child_weight":[1,2,3,6]
+	"max_depth":[3,4],
+	"min_child_weight":[1]
 	}]
 
 	print("Running GridSearch")
 	gscv = GridSearchCV(model,params,cv=5,n_jobs=-1,
-		scoring="roc_auc",verbose=2,error_score=0)
+		scoring=gini_score,verbose=3,error_score=0)
 	gscv.fit(X_train,y_train)
 	best_model = gscv.best_estimator_
 	# save best model
 	save_model(best_model,MODEL_DIR,prefix="CV5-bestModel-")
 	# save CV results
 	gscv_resutls = pd.DataFrame(gscv.cv_results_)
-	gscv_resutls.to_csv("GridSearchRes.csv",index=False)
+	gscv_resutls.to_csv("GridSearchRestest.csv",index=False)
 	
 	print("Finished CV task at "+datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
 
@@ -74,22 +75,33 @@ def create_xgbmodel(dp):
 	X_train,X_test,y_train,y_test = dp.get_test_train_data(features=features,
 		method="resample")[0]
 
-	n2p_ratio = len(y_train[y_train==0])/len(y_train[y_train==1])
-	# create model
-	xgb_model = xgb.XGBClassifier(learning_rate=0.1,min_child_weight=1,
-		n_estimators=400,silent=1,seed=100,max_depth=3,scale_pos_weight=n2p_ratio,
-		nthread=8,objective='binary:logistic')
+	saved_model = "CV5-bestModel-nest=200-lr=0.1-m3"
+	if not os.path.exists(MODEL_DIR + saved_model):
+		print("Training new model")
+		n2p_ratio = len(y_train[y_train==0])/len(y_train[y_train==1])
+		# create model
+		xgb_model = xgb.XGBClassifier(learning_rate=0.05,min_child_weight=1,
+			n_estimators=400,silent=1,seed=100,max_depth=3,scale_pos_weight=1,
+			nthread=8,objective='binary:logistic')
 
-	# Dmat_train = xgb.DMatrix(X_train,label=y_train)
-	# Dmat_test = xgb.DMatrix(X_test,label=y_test)
+		# Dmat_train = xgb.DMatrix(X_train,lsaved_modelabel=y_train)
+		# Dmat_test = xgb.DMatrix(X_test,label=y_test)
 
-	# cv task
-	tune_hyperparams_scikit(xgb_model,X_train,y_train)
-	return
+		# cv task
+		tune_hyperparams_scikit(xgb_model,X_train,y_train)
+		return
 
-	# fit model
-	print("Fitting model")
-	trained_model = xgb_model.fit(X_train,y_train)
+		# fit model
+		print("Fitting model")
+		trained_model = xgb_model.fit(X_train,y_train)
+		# save model
+		save_model(trained_model,MODEL_DIR)
+
+	# else load model
+	else:
+		print("Loading model")
+		with open(MODEL_DIR + saved_model,'rb') as inp:
+			trained_model = pk.load(inp)
 
 	#get predictions
 	print("Making predictions!")
@@ -98,14 +110,13 @@ def create_xgbmodel(dp):
 	test_pred = trained_model.predict(X_test)
 	test_pred_prob = trained_model.predict_proba(X_test)
 	# print metrics
-	m = Measurement()
+	measurer = Measurement()
 	print("Train resutls:")
-	m.print_measurements(y_train,train_pred,train_pred_prob[:,1])
+	measurer.print_measurements(y_train,train_pred,train_pred_prob[:,1])
 	print("Test resutls:")
-	m.print_measurements(y_test,test_pred,test_pred_prob[:,1])
+	measurer.print_measurements(y_test,test_pred,test_pred_prob[:,1])
 
-	# save model
-	save_model(trained_model,MODEL_DIR)
+
 
 
 
@@ -116,8 +127,6 @@ def main():
 	if not os.path.exists(MODEL_DIR):
 		os.makedirs(MODEL_DIR)
 	create_xgbmodel(dp)
-
-	
 
 
 if __name__ == '__main__':
