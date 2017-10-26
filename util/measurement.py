@@ -10,7 +10,6 @@ class Measurement(object):
 		print("ACCURACY= {}".format(self.accu(true_label,pred_label)))
 		print("AUC= {}".format(self.AUC(true_label,pred_prob)))
 		print("NORMALIZED GINI= {}".format(self.normalized_gini(true_label,pred_prob)))
-		print("NORMALIZED GINI L= {}".format(self.normalized_gini(true_label,pred_label)))
 		print("SKLEARN REPORT:")
 		self.sklearn_report(true_label,pred_label)
 
