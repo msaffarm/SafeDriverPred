@@ -36,7 +36,7 @@ class Model(object):
 		name = ""
 		name_thresh = 5
 		for k,v in params.items():
-			name += k[:name_thresh] + str(v)
+			name += k[:name_thresh] + ":" + str(v) + "%"
 		return name
 
 

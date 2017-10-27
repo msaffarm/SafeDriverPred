@@ -44,7 +44,7 @@ class Optimizer(object):
 		if self._trials:
 			return self._trials
 		if trial_path:
-			with open(save_path + "trail_dump.pkl",'rb') as inp:
+			with open(save_path + "trials_dump.pkl",'rb') as inp:
 				return pk.load(inp)
 
 

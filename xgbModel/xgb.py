@@ -14,7 +14,7 @@ sys.path.append(UTIL_DIR)
 from data_provider import DataProvider
 from measurement import Measurement
 from model import Model
-from optimizer import Optimizer
+# from optimizer import Optimizer
 
 MODEL_DIR = CURRENT_DIR + "trainedModels/"
 
@@ -134,11 +134,19 @@ def objective(params):
 	trained_model = xgb.train(params,train_dmat,
 		num_boost_round=int(params["n_estimators"]))
 	test_pred = trained_model.predict(test_dmat)
-	return {"loss":-measurer.normalized_gini(xgb_model.get_data()[1],test_pred),
-	"status":STATUS_OK}
+	test_label = xgb_model.get_data()[-1]
+	loss = -measurer.normalized_gini(test_label,test_pred)
+	return {"loss":loss,"status":STATUS_OK}
 
 
 def tune_with_TPE(dp,xgb_model,opt):
+	"""
+	Hyperparameter tuning using TPE:
+	https://github.com/hyperopt/hyperopt/wiki/FMin
+
+	for XGBOOST params doc see:
+	https://github.com/dmlc/xgboost/blob/master/doc/parameter.md
+	"""
 	# add xgb_model,measurer
 	X_train,X_test,y_train,y_test = get_data(dp)
 	xgb_model.set_data(get_data(dp))
